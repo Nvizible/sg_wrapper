@@ -25,7 +25,7 @@ class Shotgun():
 		entitySchema = self._sg.schema_entity_read()
 		entities = []
 		for e in entitySchema:
-			newEntity = {'type': e, 'name': entitySchema[e]['name']['value'], 'fields': []}
+			newEntity = {'type': e, 'name': entitySchema[e]['name']['value'].replace(" ", ""), 'fields': []}
 			newEntity['type_plural'] = self.pluralise(newEntity['type'])
 			newEntity['name_plural'] = self.pluralise(newEntity['name'])
 			entities.append(newEntity)
