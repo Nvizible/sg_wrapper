@@ -215,10 +215,33 @@ class Entity():
 	def commit(self):
 		if not self.modified_fields():
 			return False
+	
+	def revert(self, revert_fields = None):
+		if revert_fields == None:
+			revert_fields = self.modified_fields()
+		elif type(revert_fields) == "str":
+			revert_fields = [revert_fields]
 		
+		for field in self.modified_fields():
+			if field in revert_fields:
+				self._fields[field] = self._fields_changed[field]
+				del self._fields_changed[field]
+		
+	def set_field(self, fieldName, value):
 		self._shotgun.update(self, self._fields_changed.keys())
 		self._fields_changed = {}
-		
+
+		entityFields = self._shotgun.get_entity_fields(self._entity_type)
+		if fieldName in entityFields:
+			if entityFields[fieldName]['editable']['value'] == True:
+				oldValue = self._fields[fieldName]
+				self._fields[fieldName] = value
+				if fieldName not in self._fields_changed:
+					self._fields_changed[fieldName] = oldValue
+			else:
+				raise AttributeError("Field '%s' in Entity '%s' is not editable" % (fieldName, self._entity_type))
+		else:
+			raise AttributeError("Entity '%s' has no field '%s'" % (self._entity_type, fieldName))
 		
 	def __getattr__(self, attrName):
 		return self.field(attrName)
@@ -228,14 +251,10 @@ class Entity():
 			self.__dict__[attrName] = value
 			return
 			
-		entityFields = self._shotgun.get_entity_fields(self._entity_type)
-		if attrName in entityFields:
-			if entityFields[attrName]['editable']['value'] == True:
-				oldValue = self._fields[attrName]
-				self._fields[attrName] = value
-				if attrName not in self._fields_changed:
-					self._fields_changed[attrName] = oldValue
-			else:
-				raise AttributeError("Field '%s' in Entity '%s' is not editable" % (attrName, self._entity_type))
-		else:
-			raise AttributeError("Entity '%s' has no field '%s'" % (self._entity_type, attrName))
+		self.set_field(attrName, value)
+
+	def __getitem__(self, itemName):
+		return self.field(itemName)
+		
+	def __setitem__(self, itemName, value):
+		self.set_field(itemName, value)
