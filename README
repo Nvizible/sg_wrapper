@@ -1,0 +1,48 @@
+# Various usages
+
+
+sgServer = "https://demo.shotgunstudio.com"
+sgScriptName = "demo_script"
+sgScriptKey = "abcdefghijklmnopqrstuvwxyz1234567890abcd"
+
+sg = sg_wrapper.Shotgun(sgServer, sgScriptName, sgScriptKey)
+
+projects = sg.Projects()
+for project in projects:
+	print "%(name)s (%(code)s : %(id)d)" % project
+
+p = sg.Project("my_project")
+p = sg.Project(name = "My Project")
+
+shots = sg.Shots(project = p)
+for shot in shots:
+	if shot.sg_status_list == "ip":
+		shot.sg_status_list = "cmpt"
+		shot.commit() # Actually write any changes to Shotgun
+
+# Find all the complete shots from this project
+shots = sg.Shots(project = p, sg_status_list = "cmpt")
+
+people = sg.People() # Find all people
+me = sg.Person(name = "Hugh Macdonald") # Find just me
+me = sg.Person("hughmacdonald") # If no field is specified, and it's a string, looks for either 'code' or 'login'
+
+for proj in me.projects:
+	print "%(id)d : %(name)s" % proj
+
+
+me.email = "some.other@email.com"
+me.revert("email") # Reverts back to what was last pulled from Shotgun
+me.revert(["email", "name"]) # Revert multiple at onece
+me.revert() # Reverts everything that's been changed
+
+sg.commit_all() # Commits any entities with changes
+
+# If we think it might have changed in shotgun
+me.reload()
+
+# Any entities found are cached, and it will use the cached version if we search by ID (or
+# try to get the same entity through a link)
+# Also, any searches are cached, and will return the same result if searched for again
+# To clear the cache, and force any requests to update from the server:
+sg.clear_cache()
