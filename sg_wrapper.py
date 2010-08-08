@@ -1,7 +1,7 @@
 import shotgun_api3
 
 primaryTextKeys = ["code", "login"]
-customPleural = {'Person': "People"}
+customPlural = {'Person': "People"}
 
 class Shotgun():
 	def __init__(self, sgServer, sgScriptName, sgScriptKey):
@@ -11,9 +11,9 @@ class Shotgun():
 		self._entities = {}
 		self._entity_searches = []
 	
-	def pleuralise(self, name):
-		if name in customPleural:
-			return customPleural[name]
+	def pluralise(self, name):
+		if name in customPlural:
+			return customPlural[name]
 		if name[-1] == "y" and name[-3:] != "Day":
 			return name[:-1] + "ies"
 		if name[-1] in ["s", "h"]:
@@ -26,8 +26,8 @@ class Shotgun():
 		entities = []
 		for e in entitySchema:
 			newEntity = {'type': e, 'name': entitySchema[e]['name']['value'], 'fields': []}
-			newEntity['type_pleural'] = self.pleuralise(newEntity['type'])
-			newEntity['name_pleural'] = self.pleuralise(newEntity['name'])
+			newEntity['type_plural'] = self.pluralise(newEntity['type'])
+			newEntity['name_plural'] = self.pluralise(newEntity['name'])
 			entities.append(newEntity)
 			
 		return entities
@@ -47,9 +47,9 @@ class Shotgun():
 				return True
 		return False
 	
-	def is_entity_pleural(self, entityType):
+	def is_entity_plural(self, entityType):
 		for e in self._entity_types:
-			if entityType in [e['type_pleural'], e['name_pleural']]:
+			if entityType in [e['type_plural'], e['name_plural']]:
 				return True
 		return False
 	
@@ -60,7 +60,7 @@ class Shotgun():
 		thisEntityFields = None
 		
 		for e in self._entity_types:
-			if entityType in [e['type'], e['name'], e['type_pleural'], e['name_pleural']]:
+			if entityType in [e['type'], e['name'], e['type_plural'], e['name_plural']]:
 				thisEntityType = e['type']
 				if not e['fields']:
 					e['fields'] = self.get_entity_field_list(thisEntityType)
@@ -152,7 +152,7 @@ class Shotgun():
 		
 		if self.is_entity(attrName):
 			return find_entity_wrapper
-		elif self.is_entity_pleural(attrName):
+		elif self.is_entity_plural(attrName):
 			return find_multi_entity_wrapper
 	
 	def commit_all(self):
