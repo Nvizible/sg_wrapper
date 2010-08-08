@@ -9,6 +9,7 @@ class Shotgun():
 		self._entity_types = self.get_entity_list()
 		self._entity_fields = {}
 		self._entities = {}
+		self._entity_searches = []
 	
 	def pleuralise(self, name):
 		if name in customPleural:
@@ -87,33 +88,38 @@ class Shotgun():
 		if 'id' in filters:
 			if thisEntityType in self._entities and filters['id'] in self._entities[thisEntityType]:
 				return self._entities[thisEntityType][filters['id']]
-		else:
-			if thisEntityType in self._entities:
-				for entityId in self._entities[thisEntityType]:
-					filtersMatch = True
-					for f in filters:
-						if f not in self._entities[thisEntityType][entityId].fields() or self._entities[thisEntityType][entityId].field(f) != filters[f]:
-							filtersMatch = False
-							break
-					if filtersMatch:
-						return self._entities[thisEntityType][entityId]
+
+		for search in self._entity_searches:
+			if search['find_one'] == find_one and search['entity_type'] == thisEntityType:
+				if search['filters'] == filters:
+					return search['result']
 		
 		sgFilters = []
 		for f in filters:
 			sgFilters.append([f, 'is', filters[f]])
+		
+		result = None
 
 		if find_one:
-			result = self.sg_find_one(thisEntityType, sgFilters, self.get_entity_field_list(thisEntityType))
-			if not result:
-				return None
-			return Entity(self, thisEntityType, result)
+			sg_result = self.sg_find_one(thisEntityType, sgFilters, self.get_entity_field_list(thisEntityType))
+
+			if sg_result:
+				result = Entity(self, thisEntityType, sg_result)
 		else:
-			results = self.sg_find(thisEntityType, sgFilters, self.get_entity_field_list(thisEntityType))
-			entities = []
-			for result in results:
-				entities.append(Entity(self, thisEntityType, result))
-			return entities
-	
+			sg_results = self.sg_find(thisEntityType, sgFilters, self.get_entity_field_list(thisEntityType))
+			result = []
+			for sg_result in sg_results:
+				result.append(Entity(self, thisEntityType, sg_result))
+
+		thisSearch = {}
+		thisSearch['find_one'] = find_one
+		thisSearch['entity_type'] = thisEntityType
+		thisSearch['filters'] = filters
+		thisSearch['result'] = result
+		self._entity_searches.append(thisSearch)
+		
+		return result
+
 	def sg_find_one(self, entityType, filters, fields):
 		return self._sg.find_one(entityType, filters, fields)
 
@@ -135,6 +141,7 @@ class Shotgun():
 	
 	def clear_cache(self):
 		self._entities = {}
+		self._entity_searches = []
 	
 	def __getattr__(self, attrName):
 		def find_entity_wrapper(*args, **kwargs):
@@ -147,6 +154,13 @@ class Shotgun():
 			return find_entity_wrapper
 		elif self.is_entity_pleural(attrName):
 			return find_multi_entity_wrapper
+	
+	def commit_all(self):
+		for entityType in self._entities:
+			for entityId in self._entities[entityType]:
+				for entity in self._entities[entityType][entityId]:
+					if entity.modified_fields():
+						entity.commit()
 		
 class Entity():
 	def __init__(self, shotgun, entity_type, fields):
