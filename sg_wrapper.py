@@ -215,6 +215,10 @@ class Entity():
 	def commit(self):
 		if not self.modified_fields():
 			return False
+
+		self._shotgun.update(self, self._fields_changed.keys())
+		self._fields_changed = {}
+		return True
 	
 	def revert(self, revert_fields = None):
 		if revert_fields == None:
@@ -228,9 +232,6 @@ class Entity():
 				del self._fields_changed[field]
 		
 	def set_field(self, fieldName, value):
-		self._shotgun.update(self, self._fields_changed.keys())
-		self._fields_changed = {}
-
 		entityFields = self._shotgun.get_entity_fields(self._entity_type)
 		if fieldName in entityFields:
 			if entityFields[fieldName]['editable']['value'] == True:
