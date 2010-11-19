@@ -1,8 +1,15 @@
 import shotgun_api3
 
+# The Primary Text Keys are the field names to check when not defined.
+# For example, calling sg.Project("my_project") will be the same as sg.Project(code = "my_project")
 primaryTextKeys = ["code", "login"]
+
+# For most entity types, the pluralise() function will define what the plural version of the entity name is.
+# This dictionary defines any custom plural forms that we might want to have.
 customPlural = {'Person': "People"}
 
+# This is the base Shotgun class. Everything is created from here, and it deals with talking to the
+# standard Shotgun API.
 class Shotgun():
 	def __init__(self, sgServer, sgScriptName, sgScriptKey):
 		self._sg = shotgun_api3.Shotgun(sgServer, sgScriptName, sgScriptKey)
@@ -195,7 +202,11 @@ class Entity():
 					#attribute['entity'] = Entity(self._shotgun, attribute['type'], {'id': attribute['id']})
 				return attribute['entity']
 			elif type(attribute) == list:
-				return self.list_iterator(self._fields[fieldName])
+				iterator = self.list_iterator(self._fields[fieldName])
+				attrResult = []
+				for item in iterator:
+					attrResult.append(item)
+				return attrResult
 			else:
 				return self._fields[fieldName]
 			
