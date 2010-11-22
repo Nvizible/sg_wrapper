@@ -60,7 +60,7 @@ class Shotgun():
 				return True
 		return False
 	
-	def find_entity(self, entityType, key = None, find_one = True, **kwargs):
+	def find_entity(self, entityType, key = None, find_one = True, fields = None, exclude_fields = None, **kwargs):
 		filters = {}
 		
 		thisEntityType = None
@@ -96,10 +96,20 @@ class Shotgun():
 			if thisEntityType in self._entities and filters['id'] in self._entities[thisEntityType]:
 				return self._entities[thisEntityType][filters['id']]
 
+		if not fields:
+			fields = self.get_entity_field_list(thisEntityType)
+		
+		if exclude_fields:
+			for f in exclude_fields:
+				if f in fields:
+					fields.remove(f)
+
 		for search in self._entity_searches:
-			if search['find_one'] == find_one and search['entity_type'] == thisEntityType:
-				if search['filters'] == filters:
-					return search['result']
+			if search['find_one'] == find_one \
+			  and search['entity_type'] == thisEntityType \
+			  and search['filters'] == filters \
+			  and set(fields).issubset(set(search['fields'])):
+				return search['result']
 		
 		sgFilters = []
 		for f in filters:
@@ -108,12 +118,12 @@ class Shotgun():
 		result = None
 
 		if find_one:
-			sg_result = self.sg_find_one(thisEntityType, sgFilters, self.get_entity_field_list(thisEntityType))
+			sg_result = self.sg_find_one(thisEntityType, sgFilters, fields)
 
 			if sg_result:
 				result = Entity(self, thisEntityType, sg_result)
 		else:
-			sg_results = self.sg_find(thisEntityType, sgFilters, self.get_entity_field_list(thisEntityType))
+			sg_results = self.sg_find(thisEntityType, sgFilters, fields)
 			result = []
 			for sg_result in sg_results:
 				result.append(Entity(self, thisEntityType, sg_result))
@@ -122,6 +132,7 @@ class Shotgun():
 		thisSearch['find_one'] = find_one
 		thisSearch['entity_type'] = thisEntityType
 		thisSearch['filters'] = filters
+		thisSearch['fields'] = fields
 		thisSearch['result'] = result
 		self._entity_searches.append(thisSearch)
 		
