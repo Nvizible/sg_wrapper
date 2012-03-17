@@ -5,21 +5,11 @@ A module for providing an easier interface with Shotgun
 ######## Configuration settings ########
 ########################################
 
-# How to find custom entity classes
-# Options are "env" or "base"
-#   env  : Will try, on each path in ENTITY_CLASS_ENV to
-#          import <entity>.<discriminator>.<Discriminator>()
-#          or <entity>.<Entity>()
-#   base : Will try to import from the current path,
-#          <base>.<entity>.<discriminator>.<Discriminator>()
-#          or <base>.<entity>.<Entity>()
-ENTITY_CLASS_TYPE = "env"
-
-# The environment variable to look for custom entities on
-ENTITY_CLASS_ENV = "SG_WRAPPER_ENTITY_PATHS"
-
-# The base module path to add to the start of custom entities
-ENTITY_CLASS_BASE = None
+# The environment variable to look for custom entities in
+# Will try, on each path in ENTITY_CLASS_ENV to
+# import <entity>.<discriminator>.<Discriminator>()
+#     or <entity>.<Entity>()
+ENTITY_CLASS_ENV = "SG_WRAPPER_ENTITY_PATH"
 
 # The field (that must exist on every entity) to use as a discriminator
 # If this value is None, then only try to load base level entity classes.
@@ -309,6 +299,10 @@ class ShotgunSchemaCache(object):
         """
         Update the entire schema cache
         """
+        if not SCHEMA_CACHE:
+            # Don't do anything, as we aren't caching the schema
+            return
+            
         self.delete_all()
         print "Getting entity schema"
         entities = self.sg.schema_entity_read()
@@ -855,18 +849,17 @@ class Shotgun(object):
         """
         Get a list of all possible Entity subclasses
         """
-        
-        # TODO : Re-write to search for entity classes in defined paths, rather than in sys.path
-        entityRoot = self.get_entity_class_root()
-        entityRootPath = entityRoot.replace(".", os.path.sep)
+
+        oldSysPath = sys.path
+        entityPaths = os.environ[ENTITY_CLASS_ENV].split(":")
+        sys.path[:0] = entityPaths
         foundModules = []
         classes = []
-        for p in sys.path:
-            entityPath = os.path.join(p, entityRootPath)
+        for entityPath in entityPaths:
             entities = glob.glob(os.path.join(entityPath, "*/*.py"))
             for e in entities:
                 entityBase = os.path.basename(os.path.dirname(e))
-                entityClass = os.path.basename(e)[:-3]
+                entityClass = os.path.splitext(e)[0]
                 if entityClass[0] == "_":
                     continue
                 
@@ -881,12 +874,13 @@ class Shotgun(object):
                 foundModules.append(moduleName)
                 try:
                     if "." in moduleName:
-                        moduleRoot = ".".join(entityRoot.split(".") + moduleName.split(".")[:-1])
+                        moduleRoot = ".".join(moduleName.split(".")[:-1])
                         moduleName = moduleName.split(".")[-1]
+                        moduleBase = __import__(moduleRoot, globals(), locals(), [moduleName])
+                        module = getattr(moduleBase, moduleName)
                     else:
-                        moduleRoot = entityRoot
-                    moduleBase = __import__(moduleRoot, globals(), locals(), [moduleName])
-                    module = getattr(moduleBase, moduleName)
+                        module = __import__(moduleName, globals(), locals())
+
                     for item in dir(module):
                         if item.lower() == entityClass:
                             c = getattr(module, item)
@@ -894,6 +888,8 @@ class Shotgun(object):
                                 classes.append(getattr(module, item))
                 except ImportError, e:
                     pass
+        
+        sys.path = oldSysPath
         return classes
     
     def add_to_class_tree(self, classTree, thisClass):
@@ -940,12 +936,6 @@ class Shotgun(object):
         print ("  "*indent) + classTree['name']
         for c in classTree['subclasses']:
             self.print_entity_class_tree(c, indent+1)
-    
-    def get_entity_class_root(self):
-        """
-        Get the entity root for python modules
-        """
-        return ENTITY_CLASS_BASE
     
     def clear_entity_cache(self):
         """
@@ -1176,7 +1166,6 @@ class Entity(object):
         """
         Try and create an entity using the specified fields of type entity_class
         """
-        entityRoot = shotgun.get_entity_class_root()
         
         if entity_class:
             newClass = cls.find_custom_entity_class(shotgun, entity_class, entity_type)
@@ -1195,18 +1184,44 @@ class Entity(object):
     def find_custom_entity_class(cls, shotgun, entity_class, entity_type = None):
         """
         Try to load a specified custom entity_class. If it fails, returns None
+        If entity_type is passed in, and is not the same as entity_class,
+        then assume that it is looking for a subclass of an entity (as defined
+        by a discriminator)
+        
+        Before doing any import statement, prepend the contents of the environment
+        variable stored in ENTITY_CLASS_ENV onto sys.path. Also ensure that sys.path
+        is reset before returning.
+        
+        If looking for a subclass, it will load:
+            <entity_type.lower()>.<entity_class.lower()>.<entity_class>
+        Otherwise:
+            <entity_class.lower()>.<entity_class>
+        
+        For example, if looking for an entity_class of ClientVersion, with an
+        entity_type of Version, will try to load:
+            version.clientversion.ClientVersion
+        
+        Or if just looking for an entity_class of Version, and an entity_type of
+        None, will try to load:
+            version.Version
         """
-        entityRoot = shotgun.get_entity_class_root()
+        
+        oldSysPath = sys.path
+        if ENTITY_CLASS_ENV:
+            entityPaths = os.environ[ENTITY_CLASS_ENV].split(":")
+            sys.path[:0] = entityPaths
+
         try:
             if entity_type and entity_class != entity_type:
-                importPath = "%s.%s.%s" % (entityRoot,
-                                           entity_type.lower(),
-                                           entity_class.lower())
+                importPath = "%s.%s" % (entity_type.lower(),
+                                        entity_class.lower())
             else:
-                importPath = "%s.%s" % (entityRoot, entity_class.lower())
+                importPath = "%s" % (entity_class.lower())
             mod = __import__(importPath, globals(), locals(), [entity_class])
+            sys.path = oldSysPath
             return getattr(mod, entity_class)
         except ImportError, e:
+            sys.path = oldSysPath
             return None
             
     @classmethod
