@@ -46,3 +46,107 @@ me.reload()
 # Also, any searches are cached, and will return the same result if searched for again
 # To clear the cache, and force any requests to update from the server:
 sg.clear_cache()
+
+
+
+========================================
+======== Custom Entity Classes =========
+========================================
+
+Custom entity classes can be written, to allow extra functionality alongside the data that is kept
+in Shotgun, and in the Entity class.
+
+These are standard Python modules, but are not kept in a path defined by PYTHONPATH - they have their
+own environment variable, which can be defined in the configuration section at the top of sg_wrapper.py
+This is defined in the config variable ENTITY_CLASS_ENV, and defaults to SG_WRAPPER_ENTITY_PATH.
+
+In all of the examples below, <entity_type> can either refer to the actual internal entity type, or
+the entity name (for example, "HumanUser" vs "Person", or "CustomEntity01" vs whatever you called it)
+In cases where the entity name has whitespace in it, this is stripped out, and not replaced with anything.
+
+Modules are always lowercase, and classes use the same capitalisation as the entity type/name or
+discriminator.
+
+Inside any of these paths, the following structure is expected:
+
+    ./<entity_type>/__init__.py
+                    base.py
+                    <entity_class>.py
+
+base.py is a special case, as this stores the class for the base entity type, whereas any
+<entity_class>.py files will store subclasses of this. __init__.py should 
+
+The following code is an example for the Version entity, where there is a subclass called ClientVersion.
+
+----------------------------------------
+-------------- __init__.py -------------
+----------------------------------------
+
+    from base import Version
+
+----------------------------------------
+---------------- base.py ---------------
+----------------------------------------
+
+    from sg_wrapper import Entity
+
+    class Version(Entity):
+        def __init__(self, shotgun, entity_type, fields):
+            Entity.__init__(self, shotgun, entity_type, fields)
+        
+----------------------------------------
+----------- clientversion.py -----------
+----------------------------------------
+
+    from version import Version
+    
+    class ClientVersion(Version):
+        def __init__(self, shotgun, entity_type, fields):
+            Version.__init__(self, shotgun, entity_type, fields)
+
+
+Creating new custom entity classes is not done by directly calling their constructors. It is still done
+through the Shotgun object (called 'sg' in the examples below)
+
+In this case, the following will happen:
+
+    # Creates a new Version object
+    sg.Version()
+    
+    # Creates an Entity object, linked to the Shot, as there is no Shot custom entity class
+    sg.Shot()
+    
+    # Creates a new ClientVersion object, and sets the discriminator to "ClientVersion"
+    sg.ClientVersion()
+    
+    # Returns a list of Version and ClientVersion objects. Any with the discriminator
+    # "ClientVersion" will be ClientVersion objects, and others will be Version objects.
+    sg.Versions(<filters>)
+    
+    # Creates a list of Version objects, as per sg.Versions(<filters>) and
+    # then filters this down again by which ones can be case to ClientVersion
+    # This is not the same as sg.Versions(<filters>, sg_discriminator = "ClientVersion")
+    # as this will also return objects where the custom entity class (and
+    # discriminator) are subclasses of ClientVersion
+    sg.ClientVersions(<filters>)
+
+In cases where a factory function is required, this should always expect the Shotgun object as its
+first parameter, and can be called with:
+
+    sg.ClientVersion.createNew(<parameters>)
+
+This will call the following function:
+
+    class ClientVersion(Version):
+        @classmethod
+        def createNew(cls, sg, <parameters>):
+            ver = sg.ClientVersion()
+            ver.code = "something custom"
+            return ver
+
+Note that cls() should not be called directly, as this requires queries to be performed on the Shotgun
+database before being called.
+
+Note also that custom entity classes of different base entities cannot be called the same thing. So,
+for example, there could not be a subclass of Version called Client as well as a subclass of Delivery
+called Client.
