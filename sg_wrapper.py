@@ -577,6 +577,11 @@ class Shotgun(object):
                                                   'relation': "is",
                                                   'values': [{'type': kwargs[arg].entity_type(),
                                                               'id': kwargs[arg].entity_id()}]})
+                elif isinstance(kwargs[arg], dict) and 'type' in kwargs[arg] and 'id' in kwargs[arg]:
+                    filters['conditions'].append({'path': fieldName,
+                                                  'relation': "is",
+                                                  'values': [{'type': kwargs[arg]['type'],
+                                                              'id': kwargs[arg]['id']}]})
                 else:
                     fieldDetails = self.get_entity_field_details(entityType, fieldName)
                     fieldType = fieldDetails['data_type']
