@@ -25,7 +25,9 @@ shots = sg.Shots(project = p, sg_status_list = "cmpt")
 
 people = sg.People() # Find all people
 me = sg.Person(name = "Hugh Macdonald") # Find just me
-me = sg.Person("hughmacdonald") # If no field is specified, and it's a string, looks for either 'code' or 'login'
+me = sg.Person("hughmacdonald")
+# If no field is specified as a kwarg, and it's a string, looks for either 'code' or 'login'.
+# If the argument is an integer, then it looks for that ID
 
 for proj in me.projects:
 	print "%(id)d : %(name)s" % proj
