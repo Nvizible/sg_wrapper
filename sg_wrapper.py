@@ -13,7 +13,8 @@ ENTITY_CLASS_ENV = "SG_WRAPPER_ENTITY_PATH"
 
 # The field (that must exist on every entity) to use as a discriminator
 # If this value is None, then only try to load base level entity classes.
-ENTITY_DISCRIMINATOR_FIELD = "sg_discriminator"
+ENTITY_DISCRIMINATOR_FIELD_NAME = "Discriminator"
+ENTITY_DISCRIMINATOR_FIELD = "sg_" + ENTITY_DISCRIMINATOR_FIELD_NAME.lower().replace(" ", "_") if ENTITY_DISCRIMINATOR_FIELD_NAME else None
 
 # Which schema cache to use.
 # Options are:
@@ -62,7 +63,7 @@ class ShotgunSchemaCache(object):
         self.sg = sg
         self.sgServer = sg.base_url
         if SCHEMA_CACHE == "redis":
-            self.cache = redis.Redis(SCHEMA_CACHE_HOST, port=SCHEMA_CACHE_PORT, db=SCHEMA_CACHE_DB)
+            self.cache = redis.Redis(SCHEMA_CACHE_REDIS_HOST, port=SCHEMA_CACHE_REDIS_PORT, db=SCHEMA_CACHE_REDIS_DB)
         self.entities = {}
     
     def delete_all(self):
@@ -266,9 +267,9 @@ class ShotgunSchemaCache(object):
     
         fields = self.sg.schema_field_read(entity)
         modifiedFields = False
-        if "sg_discriminator" not in fields and createDiscriminator:
+        if ENTITY_DISCRIMINATOR_FIELD and ENTITY_DISCRIMINATOR_FIELD not in fields and createDiscriminator:
             print "Discriminator field does not exist. Creating"
-            self.sg.schema_field_create(entity, "text", "Discriminator")
+            self.sg.schema_field_create(entity, "text", ENTITY_DISCRIMINATOR_FIELD_NAME)
             modifiedFields = True
         
         if modifiedFields:
@@ -764,11 +765,12 @@ class Shotgun(object):
         newResults = []
         entityClass = Entity.find_custom_entity_class(self, entity_class)
         for r in results:
-            resultClass = Entity.find_custom_entity_class(self, r.sg_discriminator)
-            if resultClass and issubclass(resultClass, entityClass):
-                newResults.append(r)
-                if limit and len(newResults) >= limit:
-                    return newResults
+            if ENTITY_DISCRIMINATOR_FIELD and ENTITY_DISCRIMINATOR_FIELD in r.fields():
+                resultClass = Entity.find_custom_entity_class(self, r.field(ENTITY_DISCRIMINATOR_FIELD))
+                if resultClass and issubclass(resultClass, entityClass):
+                    newResults.append(r)
+                    if limit and len(newResults) >= limit:
+                        return newResults
         return newResults
     
     def __getattr__(self, attrName):
@@ -1129,7 +1131,8 @@ class Entity(object):
         
         if entityType:
             entity = cls(shotgun, entityType, {})
-            entity.sg_discriminator = entity_class
+            if ENTITY_DISCRIMINATOR_FIELD and ENTITY_DISCRIMINATOR_FIELD in entity.fields():
+                entity.field(ENTITY_DISCRIMINATOR_FIELD) = entity_class
         
         return entity
 
@@ -1139,8 +1142,8 @@ class Entity(object):
         Create the appropriate Entity class
         """
         
-        if 'sg_discriminator' in fields:
-            discriminator = fields['sg_discriminator']
+        if ENTITY_DISCRIMINATOR_FIELD and ENTITY_DISCRIMINATOR_FIELD in fields:
+            discriminator = fields[ENTITY_DISCRIMINATOR_FIELD]
         else:
             discriminator = None
         
