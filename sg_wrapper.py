@@ -632,6 +632,7 @@ class Shotgun(object):
             if search['find_one'] == find_one \
               and search['entity_type'] == entityType \
               and search['filters'] == filters \
+              and search['limit'] == limit \
               and search['order'] == order \
               and set(fields).issubset(set(search['fields'])) \
               and search['result']:
@@ -665,6 +666,7 @@ class Shotgun(object):
         thisSearch['entity_type'] = entityType
         thisSearch['filters'] = filters
         thisSearch['fields'] = fields
+        thisSearch['limit'] = limit
         thisSearch['result'] = result
         thisSearch['order'] = order
         self._entity_searches.append(thisSearch)
