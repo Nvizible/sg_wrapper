@@ -1132,7 +1132,7 @@ class Entity(object):
         if entityType:
             entity = cls(shotgun, entityType, {})
             if ENTITY_DISCRIMINATOR_FIELD and ENTITY_DISCRIMINATOR_FIELD in entity.fields():
-                entity.field(ENTITY_DISCRIMINATOR_FIELD) = entity_class
+                entity.set_field(ENTITY_DISCRIMINATOR_FIELD, entity_class)
         
         return entity
 
@@ -1228,7 +1228,7 @@ class Entity(object):
             mod = __import__(importPath, globals(), locals(), [entity_class])
             sys.path = oldSysPath
             return getattr(mod, entity_class)
-        except ImportError, e:
+        except ImportError:
             sys.path = oldSysPath
             return None
             
