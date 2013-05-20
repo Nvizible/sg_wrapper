@@ -31,6 +31,11 @@ SCHEMA_CACHE_REDIS_PORT = 6000
 # The database id of the redis schema cache
 SCHEMA_CACHE_REDIS_DB = 1
 
+# Turn on debug mode by setting this to True
+# This will print any function call being made to the core
+# Shotgun API
+DEBUG = False
+
 ########################################
 ###### End configuration settings ######
 ########################################
@@ -358,6 +363,8 @@ class Shotgun(object):
         Also, an optional config parameter is available to define which section
         of the config file to use
         """
+        if DEBUG:
+            print "shotgun_api3.Shotgun(%s, %s, %s)" % (`sgServer`, `sgScriptName`, `sgScriptKey`)
         self._sg = shotgun_api3.Shotgun(sgServer, sgScriptName, sgScriptKey)
         self._schema_cache = ShotgunSchemaCache(self._sg)
         self._entities = {}
@@ -677,6 +684,8 @@ class Shotgun(object):
         """
         A wrapper around the Shotgun API's find_one() function
         """
+        if DEBUG:
+            print "sg.find_one(%s, %s, %s, order =  %s)" % (`entityType`, `filters`, `fields`, `order`)
         result = self._sg.find_one(entityType, filters, fields, order = order)
         
         return result
@@ -685,6 +694,8 @@ class Shotgun(object):
         """
         A wrapper around the Shotgun API's find() function
         """
+        if DEBUG:
+            print "sg.find(%s, %s, %s, order =  %s, limit = %s)" % (`entityType`, `filters`, `fields`, `order`, `limit`)
         result = self._sg.find(entityType, filters, fields, order = order, limit = limit)
         
         return result
@@ -726,6 +737,8 @@ class Shotgun(object):
         for f in updateFields:
             updateData[f] = self.convert_entities(entity.field(f))
         
+        if DEBUG:
+            print "sg.update(%s, %s, %s)" % (`entity.entity_type()`, `entity.entity_id()`, `updateData`)
         self._sg.update(entity.entity_type(), entity.entity_id(), updateData)
         
     
@@ -738,6 +751,8 @@ class Shotgun(object):
             createData[f] = self.convert_entities(entity.field(f))
             print "%s : %s" % (f, createData[f])
         
+        if DEBUG:
+            print "sg.create(%s, %s)" % (`entity.entity_type()`, `createData`)
         newEntity = self._sg.create(entity.entity_type(), createData)
 
         return newEntity['id']
@@ -746,6 +761,8 @@ class Shotgun(object):
         """
         Delete the specified entity
         """
+        if DEBUG:
+            print "sg.delete(%s, %s)" % (`entity.entity_type()`, `entity.entity_id()`)
         self._sg.delete(entity.entity_type(), entity.entity_id())
 
     def register_entity(self, entity):
