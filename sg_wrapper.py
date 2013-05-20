@@ -856,9 +856,9 @@ class Shotgun(object):
         """
         for entityType in self._entities:
             for entityId in self._entities[entityType]:
-                for entity in self._entities[entityType][entityId]:
-                    if entity.modified_fields():
-                        entity.commit()
+                entity = self._entities[entityType][entityId]
+                if entity.modified_fields():
+                    entity.commit()
     
     def new(self, entity_type):
         """
