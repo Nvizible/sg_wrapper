@@ -1359,7 +1359,7 @@ class Entity(object):
                 return False
             
             self._shotgun.update(self, self._fields_changed.keys())
-            self._fields_changed = {}
+            self._fields_changed_dict = {}
         else:
             self._entity_id = self._shotgun.create(self)
             self._shotgun.register_entity(self)
