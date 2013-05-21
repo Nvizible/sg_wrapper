@@ -41,12 +41,10 @@ DEBUG = False
 ########################################
 
 import shotgun_api3
-import time
 import pickle
 import sys
 import os
 import glob
-import base64
 
 if SCHEMA_CACHE == "redis":
     import redis
